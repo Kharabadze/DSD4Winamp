@@ -18,6 +18,13 @@
 #include"DSD.h"
 extern FILE *debugfile;
 
+#ifndef _fseeki64
+    #define _fseeki64 fseek
+#endif // _fseeki64
+#ifndef _ftelli64
+    #define _ftelli64 ftell
+#endif // _fseeki64
+
 int Read64(__int64 *a,FILE *f){
 	unsigned char c=0;
 	*a=0;
@@ -49,18 +56,18 @@ int Read16(__int16 *a,FILE *f){
 	return 2;
 }
 int tDSD::start_DSD(void){
-	if(debugfile){fprintf(debugfile,"Start DSD (Sony)\n");fflush(debugfile);}	
+	if(debugfile){fprintf(debugfile,"Start DSD (Sony)\n");fflush(debugfile);}
 	//-------------------------------------- DSD chunk
 	if(fread(&NAME,1,4,f)!=4)return 1;
 	if(NAME!=' DSD')return 1;
-	
+
 	if(fread(&LocalSize,1,8,f)!=8)return 1;
 	if((LocalSize-=12)<0)return 1;//Name+Size = 12 bytes
-	
+
 	if(fread(&GlobalSize,1,8,f)!=8)return 1;
 	if((LocalSize-=8)<0)return 1;
 	if((GlobalSize-=20)<0)return 1;//Name+Size+Size
-	
+
 	if(fread(&ID3Size,1,8,f)!=8)return 1;//IDPointer
 	if((LocalSize-=8)<0)return 1;
 	if((GlobalSize-=8)<0)return 1;
@@ -80,7 +87,7 @@ int tDSD::start_DSD(void){
 	if(fread(&NAME,1,4,f)!=4)return 1;
 	if(NAME!=' tmf')return 1;
 	if((GlobalSize-=4)<0)return 1;
-	
+
 	if(fread(&LocalSize,1,8,f)!=8)return 1;
 	if((LocalSize-=12)<0)return 1;//Name+Size = 12 bytes
 	if((GlobalSize-=8)<0)return 1;
@@ -103,12 +110,12 @@ int tDSD::start_DSD(void){
 	if((LocalSize-=4)<0)return 1;
 	if((GlobalSize-=4)<0)return 1;
 	Channels=Sony_Channels;
-	if(debugfile){fprintf(debugfile,"Sony_Channels=%i\n",Sony_Channels);fflush(debugfile);}	
+	if(debugfile){fprintf(debugfile,"Sony_Channels=%i\n",Sony_Channels);fflush(debugfile);}
 
 	if(fread(&SampleRate,1,4,f)!=4)return 1;
 	if((LocalSize-=4)<0)return 1;
 	if((GlobalSize-=4)<0)return 1;
-	if(debugfile){fprintf(debugfile,"SampleRate=%i\n",SampleRate);fflush(debugfile);}	
+	if(debugfile){fprintf(debugfile,"SampleRate=%i\n",SampleRate);fflush(debugfile);}
 
 
 	if(fread(&Sony_BPS,1,4,f)!=4)return 1;
@@ -118,7 +125,7 @@ int tDSD::start_DSD(void){
 	if(Sony_BPS==1)LSB_first=true;
 	else if(Sony_BPS==8)MSB_first=true;
 	else return 1; //One bit only
-	if(debugfile){fprintf(debugfile,"BPS=%i\n",Sony_BPS);fflush(debugfile);}	
+	if(debugfile){fprintf(debugfile,"BPS=%i\n",Sony_BPS);fflush(debugfile);}
 
 	if(fread(&Samples,1,8,f)!=8)return 1;
 	if((LocalSize-=8)<0)return 1;
@@ -145,7 +152,7 @@ int tDSD::start_DSD(void){
 	if(fread(&NAME,1,4,f)!=4)return 1;
 	if(NAME!='atad')return 1;
 	if((GlobalSize-=4)<0)return 1;
-	
+
 	if(fread(&LocalSize,1,8,f)!=8)return 1;
 	if((LocalSize-=12)<0)return 1;//Name+Size = 12 bytes
 	if((GlobalSize-=8)<0)return 1;
@@ -283,7 +290,7 @@ int tDSD::start_FRM8(void){//Phillips format (fill it later)
 				StartData=ftell(f);//------------------------------ data start
 				Samples=LocalSize/Channels*8;
 				_fseeki64(f,LocalSize,SEEK_CUR);LocalSize=0;
-				
+
 				break;
 			case ' TSD':
 				return 0;//Compressed data

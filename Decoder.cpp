@@ -5,6 +5,10 @@
 #include<stdio.h>		//+++++++DEBUG
 extern FILE *debugfile;	//+++++++DEBUG
 
+#ifndef abs
+    #define abs(arg) ((arg>0)?(arg):-(arg))
+#endif // abs
+
 void tDSD_decoder::set_ch_x(int ch,int xx){
 	channels=ch;
 	x_factor=xx;

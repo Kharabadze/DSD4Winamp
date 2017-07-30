@@ -19,7 +19,7 @@ struct tDSD_decoder{
 	void decode_block(unsigned char **input_data,int **output_data);
 
 	//--- dummy decoder
-	__int64 dummy_filter[16];//maximum - 16 channels
+	long long dummy_filter[16];//maximum - 16 channels
 	void dummy_block(unsigned char **input_data,int **output_data);
 
 	tDSD_decoder(void);

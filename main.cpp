@@ -48,10 +48,10 @@ volatile int killDecodeThread=0;
 HANDLE thread_handle=INVALID_HANDLE_VALUE;
 
 __int64 decode_pos_samples;//current decoding position in samples (44100)
-int decode_pos_ms;		// current decoding position, in milliseconds. 
+int decode_pos_ms;		// current decoding position, in milliseconds.
 						// Used for correcting DSP plug-in pitch changes
 int paused;				// are we paused?
-volatile int seek_needed; // if != -1, it is the point that the decode 
+volatile int seek_needed; // if != -1, it is the point that the decode
 
 
 
@@ -64,14 +64,14 @@ volatile int seek_needed; // if != -1, it is the point that the decode
 
 //------------------------- Code start
 void config(HWND hwndParent){
-	MessageBox(hwndParent,
+	MessageBoxW(hwndParent,
 		L"No configuration. Auto-detection of DSD type",
 		L"Configuration",MB_OK);
 	// if we had a configuration box we'd want to write it here (using DialogBox, etc)
 }
 
 void about(HWND hwndParent){
-	MessageBox(hwndParent,L"Direct Stream Digital Player 1.1, by David Kharabadze",
+	MessageBoxW(hwndParent,L"Direct Stream Digital Player 1.1 (MinGW), by David Kharabadze",
 		L"About DSD Player",MB_OK);
 }
 
@@ -96,24 +96,24 @@ void quit() {
 void getfileinfo(const char *filename, char *title, int *length_in_ms){
 	title=0;//Dont't decode ID3v2 TAG
 	if (!filename || !*filename){  // currently playing file
-		if(debugfile){fprintf(debugfile,"Curent File Info\n");fflush(debugfile);}	
+		if(debugfile){fprintf(debugfile,"Curent File Info\n");fflush(debugfile);}
 		if(length_in_ms)
 			*length_in_ms=int(DSD.Samples*1000/DSD.SampleRate);
 		if(title)
-			strcpy_s(title,14,"Current_File");//???
+			strcpy(title,"Current_File");//???
 		if(debugfile){fprintf(debugfile,"File info:%llu / %i\n",DSD.Samples,DSD.SampleRate);fflush(debugfile);}
 	}else{
 		if(debugfile){fprintf(debugfile,"File %s info\n",filename);fflush(debugfile);}
 		tDSD *locDSD=new tDSD;
 		FILE *lf;//lf=fopen(filename,"rb");
-		fopen_s(&lf,filename,"rb");
+		lf = fopen(filename,"rb");
 
 		locDSD->start(lf);
 		fclose(lf);
 		if(length_in_ms)
 			*length_in_ms=int(locDSD->Samples*1000/locDSD->SampleRate);
 		if(title)
-			strcpy_s(title,13,"Future_File");
+			strcpy(title,"Future_File");
 		if(debugfile){fprintf(debugfile,"File info:%llu / %i\n",locDSD->Samples,locDSD->SampleRate);fflush(debugfile);}
 		//locDSD->finish();
 		delete locDSD;
@@ -129,20 +129,20 @@ int infoDlg(const char *fn, HWND hwnd)
 	return 0;
 }
 
-int isourfile(const char *fn) { 
+int isourfile(const char *fn) {
 // return !strncmp(fn,"http://",7); to detect HTTP streams, etc
-	return 0; 
-} 
+	return 0;
+}
 
 //-------------------------------------------------------------------------- MAIN DECODER
-// render 576 samples into buf. 
-// this function is only used by DecodeThread. 
+// render 576 samples into buf.
+// this function is only used by DecodeThread.
 
 // note that if you adjust the size of sample_buffer, for say, 1024
-// sample blocks, it will still work, but some of the visualization 
+// sample blocks, it will still work, but some of the visualization
 // might not look as good as it could. Stick with 576 sample blocks
-// if you can, and have an additional auxiliary (overflow) buffer if 
-// necessary.. 
+// if you can, and have an additional auxiliary (overflow) buffer if
+// necessary..
 int get_576_samples(char *buf){
 	//int halfsize=576*DSD.Channels*BPS/8;
 	__int64 l=0;
@@ -152,7 +152,7 @@ int get_576_samples(char *buf){
 	//DSD_decoder.dummy_block(encoded_data,decoded_data);
 	DSD_decoder.decode_block(encoded_data,decoded_data);
 	//l=l*Channels*(BPS/8)/DSD_decoder.x_factor/8;
-	
+
 	//int newsize=(l*8/DSD_decoder.x_factor)*DSD_decoder.channels*(BPS/8);//Exact value
 	//int newsize=(l==0)?0:576*DSD_decoder.channels*(BPS/8);//zero or 576 samples
 	int newsize=(l==576*DSD_decoder.x_factor/8)?576*DSD_decoder.channels*(BPS/8):0;//zero or 576 samples
@@ -203,7 +203,7 @@ DWORD WINAPI DecodeThread(LPVOID b)
 {
 	if(debugfile){fprintf(debugfile,"Start DecodeThread\n");fflush(debugfile);}
 	int done=0; // set to TRUE if decoding has finished
-	while (!killDecodeThread) 
+	while (!killDecodeThread)
 	{
 		if (seek_needed != -1){ // seek is needed.
 			decode_pos_ms=seek_needed;
@@ -225,7 +225,7 @@ DWORD WINAPI DecodeThread(LPVOID b)
 			mod.outMod->CanWrite();		// some output drivers need CanWrite
 									    // to be called on a regular basis.
 
-			if (!mod.outMod->IsPlaying()) 
+			if (!mod.outMod->IsPlaying())
 			{
 				// we're done playing, so tell Winamp and quit the thread.
 				PostMessage(mod.hMainWindow,WM_WA_MPEG_EOF,0,0);
@@ -238,15 +238,15 @@ DWORD WINAPI DecodeThread(LPVOID b)
 			int bl=((576*DSD.Channels*(BPS/8))*(mod.dsp_isactive()?2:1));
 
 			// CanWrite() returns the number of bytes you can write, so we check that
-			// to the block size. the reason we multiply the block size by two if 
-			// mod.dsp_isactive() is that DSP plug-ins can change it by up to a 
-			// factor of two (for tempo adjustment).	
+			// to the block size. the reason we multiply the block size by two if
+			// mod.dsp_isactive() is that DSP plug-ins can change it by up to a
+			// factor of two (for tempo adjustment).
 			if (mod.outMod->CanWrite() >= bl){
 				if(debugfile){fprintf(debugfile,"Start get576samples %i\n",bl);fflush(debugfile);}
 				int l=get_576_samples(sample_data);	   // retrieve samples
 
 				if(debugfile){fprintf(debugfile,"Finish get576samples %i\n",l);fflush(debugfile);}
-	
+
 				if (!l){			// no samples means we're at eof
 					done=1;
 				}else{	// we got samples!
@@ -260,7 +260,7 @@ DWORD WINAPI DecodeThread(LPVOID b)
 					decode_pos_ms=int((decode_pos_samples*1000)/SAMPLERATE);
 					if(debugfile){fprintf(debugfile,"Finish Add pcm data %i\n",decode_pos_ms);fflush(debugfile);}
 					// if we have a DSP plug-in, then call it on our samples
-					if (mod.dsp_isactive()) 
+					if (mod.dsp_isactive())
 						l=mod.dsp_dosamples(
 						(short *)sample_data,2*576,BPS,DSD.Channels,SAMPLERATE
 						  ) // dsp_dosamples
@@ -270,7 +270,7 @@ DWORD WINAPI DecodeThread(LPVOID b)
 					mod.outMod->Write(sample_data,l);
 				}
 			}else Sleep(20);
-			// if we can't write data, wait a little bit. Otherwise, continue 
+			// if we can't write data, wait a little bit. Otherwise, continue
 			// through the loop writing more data (without sleeping)
 		}
 	}
@@ -292,10 +292,10 @@ int play(const char *fn){
 	decode_pos_ms=0;
 	seek_needed=-1;
 
-		
+
 	// CHANGEME! Write your own file opening code here
 	//f=fopen(fn,"rb");
-	fopen_s(&f,fn,"rb");
+	f = fopen(fn,"rb");
 	if(f==0)return 1;
 
 	//------------------------ New DSD+Decoder
@@ -325,7 +325,7 @@ int play(const char *fn){
 	if(debugfile){fprintf(debugfile,"Finish Getting memory\n");fflush(debugfile);}
 	//------------------------ Main part
 
-	
+
 	//strcpy(lastfn,fn); //???
 
 	// -1 and -1 are to specify buffer and prebuffer lengths.
@@ -352,26 +352,26 @@ int play(const char *fn){
 	// set the output plug-ins default volume.
 	// volume is 0-255, -666 is a token for
 	// current volume.
-	mod.outMod->SetVolume(-666); 
-	
+	mod.outMod->SetVolume(-666);
+
 	decode_pos_samples=0;decode_pos_ms=0;
 	// launch decode thread
 	killDecodeThread=0;
-	thread_handle = (HANDLE) 
+	thread_handle = (HANDLE)
 		CreateThread(NULL,0,(LPTHREAD_START_ROUTINE) DecodeThread,NULL,0,&thread_id);
-	
-	return 0; 
+
+	return 0;
 }
 void pause() { paused=1; mod.outMod->Pause(1); }
 void unpause() { paused=0; mod.outMod->Pause(0); }
 int ispaused() { return paused; }
-void stop() { 
+void stop() {
 	if (thread_handle != INVALID_HANDLE_VALUE)
 	{
 		killDecodeThread=1;
 		if (WaitForSingleObject(thread_handle,10000) == WAIT_TIMEOUT)
 		{
-			MessageBox(mod.hMainWindow,L"error asking thread to die!\n",
+			MessageBoxW(mod.hMainWindow,L"error asking thread to die!\n",
 				L"error killing decode thread",0);
 			TerminateThread(thread_handle,0);
 		}
@@ -384,7 +384,7 @@ void stop() {
 
 	// deinitialize visualization
 	mod.SAVSADeInit();
-	
+
 
 	// CHANGEME! Write your own file closing code here
 	if (f){fclose(f);f=0;}
@@ -402,7 +402,7 @@ void stop() {
 // returns length of playing track (in ms)
 int getlength() {
 	return int(DSD.Samples*1000/DSD.SampleRate);
-	//(file_length*10)/(SAMPLERATE/100*NCH*(BPS/8)); 
+	//(file_length*10)/(SAMPLERATE/100*NCH*(BPS/8));
 }
 
 
@@ -410,9 +410,9 @@ int getlength() {
 // you could just use return mod.outMod->GetOutputTime(),
 // but the dsp plug-ins that do tempo changing tend to make
 // that wrong.
-int getoutputtime() { 
+int getoutputtime() {
 	return decode_pos_ms+
-		(mod.outMod->GetOutputTime()-mod.outMod->GetWrittenTime()); 
+		(mod.outMod->GetOutputTime()-mod.outMod->GetWrittenTime());
 }
 
 
@@ -420,25 +420,25 @@ int getoutputtime() {
 // usually we use it to set seek_needed to the seek
 // point (seek_needed is -1 when no seek is needed)
 // and the decode thread checks seek_needed.
-void setoutputtime(int time_in_ms) { 
-	seek_needed=time_in_ms; 
+void setoutputtime(int time_in_ms) {
+	seek_needed=time_in_ms;
 }
 
 //-------------------------------------------------------------------------- sound processing
 void setvolume(int volume) {
 
 	if(debugfile){fprintf(debugfile,"Set Volume %i\n",volume);fflush(debugfile);}
-	mod.outMod->SetVolume(volume); 
+	mod.outMod->SetVolume(volume);
 	//DSD_decoder.set_volume(volume);
-	//mod.outMod->SetVolume(255); 
+	//mod.outMod->SetVolume(255);
 }
 void setpan(int pan) { mod.outMod->SetPan(pan); }
-void eq_set(int on, char data[10], int preamp){ 
+void eq_set(int on, char data[10], int preamp){
 	// most plug-ins can't even do an EQ anyhow.. I'm working on writing
-	// a generic PCM EQ, but it looks like it'll be a little too CPU 
+	// a generic PCM EQ, but it looks like it'll be a little too CPU
 	// consuming to be useful :)
 	// if you _CAN_ do EQ with your format, each data byte is 0-63 (+20db <-> -20db)
-	// and preamp is the same. 
+	// and preamp is the same.
 	return;
 }
 
@@ -446,7 +446,7 @@ void eq_set(int on, char data[10], int preamp){
 
 //--------------------------------------------------------------------------
 int INIT_MODULE(void){
-	
+
 	//mod = {
 	mod.version=IN_VER;	// defined in IN2.H
 	mod.description="Direct Stream Digital Player v1.1 (x86)";
@@ -468,7 +468,7 @@ int INIT_MODULE(void){
 	mod.UnPause=unpause;
 	mod.IsPaused=ispaused;
 	mod.Stop=stop;
-	
+
 	mod.GetLength=getlength;
 	mod.GetOutputTime=getoutputtime;
 	mod.SetOutputTime=setoutputtime;
